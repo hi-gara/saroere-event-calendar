@@ -1,0 +1,2080 @@
+
+---
+import { events } from "../data/events";
+
+const typeNames = {
+  official: "公式イベント",
+  unofficial: "非公式イベント",
+};
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="サロン・ドゥ・エレガンティーク関連イベントをまとめた非公式カレンダーです。" />
+    <meta name="theme-color" content="#f7f8fa" />
+    <title>サロン・ドゥ・エレガンティーク イベントカレンダー</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link rel="icon" href="/saroere-custom-favicon.ico" />
+	<link
+	href="https://fonts.googleapis.com/css2?family=LINE+Seed+JP:wght@400;500;600;700&display=swap"
+	rel="stylesheet"
+	/>
+  </head>
+
+  <body>
+    <div class="site">
+      <header class="header">
+        <div class="brand">
+          <h1>サロン・ドゥ・エレガンティーク イベントカレンダー</h1>
+          <p>Salon d' Élégantique · Event Calendar</p>
+        </div>
+
+        <div class="header-actions">
+          <button id="theme-toggle" class="theme-toggle" type="button">
+            <span id="theme-icon" aria-hidden="true">☾</span>
+            <span id="theme-label">ダークモード</span>
+          </button>
+          <span class="unofficial-label">非公式ファンサイト</span>
+        </div>
+      </header>
+
+      <main>
+        <div class="legend">
+          <span><i class="dot official"></i>公式イベント</span>
+          <span><i class="dot unofficial"></i>非公式イベント</span>
+        </div>
+
+        <section class="calendar-card" aria-label="イベントカレンダー">
+          <div class="calendar-toolbar">
+            <div class="month-heading">
+              <h2 id="month-title">カレンダー</h2>
+              <span id="event-count" class="count"></span>
+            </div>
+
+            <div class="toolbar-right">
+              <label class="week-start-control">
+                <span>週の始まり</span>
+                <select id="week-start" aria-label="週の始まり">
+                  <option value="0">日曜始まり</option>
+                  <option value="1">月曜始まり</option>
+                </select>
+              </label>
+
+              <select id="type-filter" aria-label="イベント種別">
+                <option value="all">すべて</option>
+                <option value="official">公式イベント</option>
+                <option value="unofficial">非公式イベント</option>
+              </select>
+
+              <div class="calendar-controls">
+                <button id="today-button" type="button">今月</button>
+                <button id="prev-month" type="button" aria-label="前の月">‹</button>
+                <button id="next-month" type="button" aria-label="次の月">›</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="weekdays" class="weekdays" aria-hidden="true"></div>
+          <div id="calendar" class="calendar-grid"></div>
+
+          <p class="calendar-help">
+            イベント名にカーソルを合わせると概要を表示します。クリックすると詳細を確認できます。
+          </p>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-notice">
+          <p>当サイトは「サロン・ドゥ・エレガンティーク」の公式サイトではありません。</p>
+          <p>一参加者が個人的に制作・運営する非公式コンテンツです。</p>
+          <p>開催情報は変更される場合があります。参加前に主催者の最新の告知をご確認ください。</p>
+        </div>
+
+        <div class="footer-credit">
+          <p>製作・運営及び問い合わせ先：日雀</p>
+          <a href="https://x.com/hi_gara" target="_blank" rel="noopener noreferrer">
+            X（@hi_gara）
+          </a>
+        </div>
+      </footer>
+    </div>
+
+    <div id="event-modal" class="modal" hidden>
+      <button class="modal-backdrop" id="modal-backdrop" type="button" aria-label="詳細を閉じる"></button>
+
+      <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-decoration" aria-hidden="true">
+          <span class="decoration-line"></span>
+          <span class="decoration-symbol">✦</span>
+          <span class="decoration-line"></span>
+        </div>
+
+        <div class="modal-header">
+          <span id="modal-type" class="type-badge"></span>
+          <button id="modal-close" class="close-button" type="button" aria-label="閉じる">×</button>
+        </div>
+
+        <h2 id="modal-title"></h2>
+        <p class="modal-subtitle">EVENT DETAILS</p>
+        <dl id="modal-details" class="details"></dl>
+
+        <p class="modal-disclaimer">
+          開催日時・参加条件などは、主催者の最新の告知もあわせてご確認ください。
+        </p>
+      </section>
+    </div>
+
+    <div id="event-tooltip" class="tooltip" hidden></div>
+  </body>
+</html>
+
+<script define:vars={{ events, typeNames }}>
+  const calendar = document.querySelector("#calendar");
+  const weekdays = document.querySelector("#weekdays");
+  const monthTitle = document.querySelector("#month-title");
+  const eventCount = document.querySelector("#event-count");
+  const typeFilter = document.querySelector("#type-filter");
+  const weekStartSelect = document.querySelector("#week-start");
+
+  const modal = document.querySelector("#event-modal");
+  const modalType = document.querySelector("#modal-type");
+  const modalTitle = document.querySelector("#modal-title");
+  const modalDetails = document.querySelector("#modal-details");
+  const tooltip = document.querySelector("#event-tooltip");
+
+  const themeToggle = document.querySelector("#theme-toggle");
+  const themeIcon = document.querySelector("#theme-icon");
+  const themeLabel = document.querySelector("#theme-label");
+
+  const today = new Date();
+  let displayedYear = today.getFullYear();
+  let displayedMonth = today.getMonth();
+  let lastFocusedElement = null;
+  let tooltipTimer;
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  function dateKey(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+
+  function formatDate(value) {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return `${year}年${month}月${day}日（${"日月火水木金土"[date.getDay()]}）`;
+  }
+
+  function el(tag, className = "", text) {
+    const node = document.createElement(tag);
+
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+
+    return node;
+  }
+
+  // localStorageへのアクセスが制限されていても動作できるようにする
+  function readSetting(key, fallback) {
+    try {
+      const value = localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveSetting(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // 保存できない環境では現在の画面内の設定だけを使用する
+    }
+  }
+
+  // ライトモード・ダークモード
+  function applyTheme(theme) {
+    const selectedTheme = theme === "dark" ? "dark" : "light";
+
+    document.documentElement.dataset.theme = selectedTheme;
+
+    const isDark = selectedTheme === "dark";
+
+    themeIcon.textContent = isDark ? "☀" : "☾";
+    themeLabel.textContent = isDark ? "ライトモード" : "ダークモード";
+
+    themeToggle.setAttribute(
+      "aria-label",
+      isDark ? "ライトモードに切り替える" : "ダークモードに切り替える"
+    );
+
+    themeToggle.setAttribute("aria-pressed", String(isDark));
+  }
+
+  applyTheme(readSetting("saroere-calendar-theme", "light"));
+
+  themeToggle.addEventListener("click", () => {
+    const nextTheme =
+      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+
+    applyTheme(nextTheme);
+    saveSetting("saroere-calendar-theme", nextTheme);
+  });
+
+  // 週の開始曜日
+  let weekStart = readSetting("saroere-calendar-week-start", "0") === "1" ? 1 : 0;
+  weekStartSelect.value = String(weekStart);
+
+  function filteredEvents() {
+    return events.filter((event) => {
+      return typeFilter.value === "all" || event.type === typeFilter.value;
+    });
+  }
+
+  function renderWeekdays() {
+    const names = ["日", "月", "火", "水", "木", "金", "土"];
+
+    weekdays.replaceChildren();
+
+    for (let i = 0; i < 7; i++) {
+      const day = (weekStart + i) % 7;
+      const item = el("div", "", names[day]);
+
+      if (day === 0) item.classList.add("sunday");
+      if (day === 6) item.classList.add("saturday");
+
+      weekdays.append(item);
+    }
+  }
+
+  function renderCalendar() {
+    monthTitle.textContent = `${displayedYear}年${displayedMonth + 1}月`;
+
+    const firstDay = new Date(displayedYear, displayedMonth, 1);
+    const offset = (firstDay.getDay() - weekStart + 7) % 7;
+
+    const monthEvents = filteredEvents().filter((event) => {
+      const [year, month] = event.date.split("-").map(Number);
+
+      return year === displayedYear && month === displayedMonth + 1;
+    });
+
+    eventCount.textContent = `${monthEvents.length}件のイベント`;
+    calendar.replaceChildren();
+
+    // 常に7列×6週で生成する
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(displayedYear, displayedMonth, i - offset + 1);
+      const key = dateKey(date);
+      const cell = el("div", "calendar-day");
+
+      cell.setAttribute("role", "group");
+      cell.setAttribute("aria-label", formatDate(key));
+
+      if (date.getMonth() !== displayedMonth) {
+        cell.classList.add("outside");
+      }
+
+      if (date.getDay() === 0) {
+        cell.classList.add("sunday-cell");
+      }
+
+      if (date.getDay() === 6) {
+        cell.classList.add("saturday-cell");
+      }
+
+      if (key === dateKey(today)) {
+        cell.classList.add("today-cell");
+      }
+
+      const number = el("div", "day-number", String(date.getDate()));
+
+      if (key === dateKey(today)) {
+        number.classList.add("today");
+      }
+
+      cell.append(number);
+
+      monthEvents
+        .filter((event) => event.date === key)
+        .forEach((event) => {
+          const button = el("button", `day-event ${event.type}`, event.name);
+
+          button.type = "button";
+          button.title = `${event.start}〜${event.end}`;
+          button.setAttribute("aria-label", `${event.name}の詳細を開く`);
+
+          button.addEventListener("mouseenter", () => {
+            clearTimeout(tooltipTimer);
+            showTooltip(event, button);
+          });
+
+          button.addEventListener("mouseleave", () => {
+            tooltipTimer = setTimeout(hideTooltip, 100);
+          });
+
+          button.addEventListener("focus", () => showTooltip(event, button));
+          button.addEventListener("blur", hideTooltip);
+
+          button.addEventListener("click", () => {
+            hideTooltip();
+            openModal(event);
+          });
+
+          cell.append(button);
+        });
+
+      calendar.append(cell);
+    }
+
+    // 日付マスの高さに合わせて、長いイベント名の文字サイズを自動調整する
+    requestAnimationFrame(fitEventLabels);
+  }
+
+  function fitEventLabels() {
+    document.querySelectorAll(".day-event").forEach((button) => {
+      let fontSize = 11;
+      button.style.fontSize = `${fontSize}px`;
+
+      // 枠内に収まるまで少しずつ文字を小さくする（最小8px）
+      while (
+        fontSize > 8 &&
+        (button.scrollHeight > button.clientHeight + 1 ||
+          button.scrollWidth > button.clientWidth + 1)
+      ) {
+        fontSize = Math.max(8, fontSize - 0.5);
+        button.style.fontSize = `${fontSize}px`;
+      }
+    });
+  }
+
+  // イベント名の位置に概要を表示する
+  function showTooltip(event, button) {
+    if (!modal.hidden) return;
+
+    tooltip.replaceChildren(
+      el("span", `type-badge ${event.type}`, typeNames[event.type]),
+      el("strong", "", event.name),
+      el("p", "", `${event.start}〜${event.end}`),
+      el("p", "", event.overview)
+    );
+
+    tooltip.hidden = false;
+
+    const rect = button.getBoundingClientRect();
+    const margin = 12;
+    const width = tooltip.offsetWidth;
+    const height = tooltip.offsetHeight;
+
+    let left = rect.left;
+    let top = rect.bottom + 8;
+
+    if (left + width > window.innerWidth - margin) {
+      left = window.innerWidth - width - margin;
+    }
+
+    if (top + height > window.innerHeight - margin) {
+      top = rect.top - height - 8;
+    }
+
+    tooltip.style.left = `${Math.max(margin, left)}px`;
+    tooltip.style.top = `${Math.max(margin, top)}px`;
+  }
+
+  function hideTooltip() {
+    clearTimeout(tooltipTimer);
+    tooltip.hidden = true;
+  }
+
+  function addDetail(label, value) {
+    const row = el("div", "detail-row");
+
+    row.append(
+      el("dt", "", label),
+      el("dd", "", value || "未掲載")
+    );
+
+    modalDetails.append(row);
+
+    return row.querySelector("dd");
+  }
+
+  // イベント詳細画面
+  function openModal(event) {
+    hideTooltip();
+
+    lastFocusedElement = document.activeElement;
+
+    modalType.className = `type-badge ${event.type}`;
+    modalType.textContent = typeNames[event.type];
+    modalTitle.textContent = event.name;
+
+    modalDetails.replaceChildren();
+
+    addDetail("種別", typeNames[event.type]);
+    addDetail(
+      "日程と時間",
+      `${formatDate(event.date)}\n${event.start}〜${event.end}`
+    );
+    addDetail("場所", `${event.country}・${event.town}`);
+    addDetail("対象者", event.audience);
+    addDetail("イベント概要", event.overview);
+    addDetail("主催者", event.organizer);
+    addDetail("注意事項", event.notes);
+
+    const source = addDetail("告知ツイート", "");
+
+    if (event.url) {
+      try {
+        const parsed = new URL(event.url);
+
+        if (
+          parsed.protocol === "https:" &&
+          ["x.com", "twitter.com"].includes(parsed.hostname)
+        ) {
+          const link = el("a", "source-link", "告知元の投稿を開く ↗");
+
+          link.href = parsed.href;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+
+          source.replaceChildren(link);
+        } else {
+          source.textContent = "告知リンクを確認できません";
+        }
+      } catch {
+        source.textContent = "告知リンクを確認できません";
+      }
+    } else {
+      source.textContent = "告知リンクはありません";
+    }
+
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+    document.querySelector("#modal-close").focus();
+  }
+
+  function closeModal() {
+    if (modal.hidden) return;
+
+    modal.hidden = true;
+    document.body.style.overflow = "";
+
+    if (lastFocusedElement instanceof HTMLElement) {
+      lastFocusedElement.focus();
+    }
+
+    // フォーカスをイベント名へ戻した際に概要ポップアップが再表示されるのを防ぐ
+    hideTooltip();
+  }
+
+  // 月移動
+  document.querySelector("#prev-month").addEventListener("click", () => {
+    displayedMonth--;
+
+    if (displayedMonth < 0) {
+      displayedMonth = 11;
+      displayedYear--;
+    }
+
+    hideTooltip();
+    renderCalendar();
+  });
+
+  document.querySelector("#next-month").addEventListener("click", () => {
+    displayedMonth++;
+
+    if (displayedMonth > 11) {
+      displayedMonth = 0;
+      displayedYear++;
+    }
+
+    hideTooltip();
+    renderCalendar();
+  });
+
+  document.querySelector("#today-button").addEventListener("click", () => {
+    displayedYear = today.getFullYear();
+    displayedMonth = today.getMonth();
+
+    hideTooltip();
+    renderCalendar();
+  });
+
+  // イベント種別の絞り込み
+  typeFilter.addEventListener("change", () => {
+    hideTooltip();
+    renderCalendar();
+  });
+
+  // 週の始まりを切り替え、設定を保存する
+  weekStartSelect.addEventListener("change", () => {
+    weekStart = Number(weekStartSelect.value) === 1 ? 1 : 0;
+
+    saveSetting("saroere-calendar-week-start", String(weekStart));
+
+    hideTooltip();
+    renderWeekdays();
+    renderCalendar();
+  });
+
+  // 詳細画面を閉じる
+  document.querySelector("#modal-close").addEventListener("click", closeModal);
+  document.querySelector("#modal-backdrop").addEventListener("click", closeModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeModal();
+      hideTooltip();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    hideTooltip();
+    requestAnimationFrame(fitEventLabels);
+  });
+  window.addEventListener("scroll", hideTooltip, true);
+
+  renderWeekdays();
+  renderCalendar();
+</script>
+
+<style>
+  :global(*) {
+    box-sizing: border-box;
+  }
+
+  :global(html) {
+    color-scheme: light;
+  }
+
+  :global(html[data-theme="dark"]) {
+    color-scheme: dark;
+  }
+
+  :global(body) {
+    margin: 0;
+    background: #f7f8fa;
+    color: #292d35;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
+    line-height: 1.6;
+    transition: background-color .2s, color .2s;
+  }
+
+  :global(button),
+  :global(select) {
+    font: inherit;
+  }
+
+  .site {
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ヘッダー */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .header h1 {
+    margin: 0;
+    font-size: clamp(15px, 2vw, 21px);
+    line-height: 1.5;
+  }
+
+  .header p {
+    margin: 2px 0 0;
+    color: #818795;
+    font-size: 11px;
+    letter-spacing: .08em;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .theme-toggle,
+  .unofficial-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid #e1e4e9;
+    border-radius: 999px;
+    background: white;
+    color: #555c68;
+    font-size: 12px;
+  }
+
+  .theme-toggle {
+    cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s;
+  }
+
+  .theme-toggle:hover {
+    background: #f0f1f4;
+  }
+
+  .unofficial-label {
+    flex-shrink: 0;
+    color: #626977;
+  }
+
+  /* 凡例 */
+  main {
+    padding: 12px 0 28px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-bottom: 12px;
+  }
+
+  .legend span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #606673;
+    font-size: 12px;
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    flex-shrink: 0;
+    border-radius: 50%;
+  }
+
+  .dot.official {
+    background: #d94b4b;
+  }
+
+  .dot.unofficial {
+    background: #32845b;
+  }
+
+  /* カレンダー本体 */
+  .calendar-card {
+    width: 100%;
+    padding: 18px;
+    border: 1px solid #e5e8ee;
+    border-radius: 10px;
+    background: white;
+    box-shadow: 0 4px 18px #22222205;
+  }
+
+  .calendar-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .month-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .month-heading h2 {
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .count {
+    color: #9297a3;
+    font-size: 12px;
+  }
+
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .week-start-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #777e8a;
+    font-size: 11px;
+  }
+
+  #week-start,
+  #type-filter {
+    min-height: 34px;
+    max-width: 100%;
+    padding: 5px 10px;
+    border: 1px solid #e1e4e9;
+    border-radius: 8px;
+    background: white;
+    color: #555c68;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .calendar-controls {
+    display: flex;
+    gap: 7px;
+  }
+
+  .calendar-controls button {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 9px;
+    border: 1px solid #e4e6ec;
+    border-radius: 8px;
+    background: white;
+    color: #292d35;
+    cursor: pointer;
+  }
+
+  .calendar-controls button:first-child {
+    font-size: 12px;
+  }
+
+  .calendar-controls button:not(:first-child) {
+    font-size: 21px;
+    line-height: 1;
+  }
+
+  .calendar-controls button:hover,
+  #week-start:hover,
+  #type-filter:hover,
+  .close-button:hover {
+    background: #f3f4f7;
+  }
+
+  /* 曜日と日付を7列の表にする */
+  .weekdays,
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .weekdays {
+    border-top: 1px solid #666;
+    border-left: 1px solid #666;
+    padding: 0;
+    gap: 0;
+  }
+
+  .weekdays div {
+    min-width: 0;
+    padding: 5px 2px;
+    border-right: 1px solid #666;
+    border-bottom: 1px solid #666;
+    background: #f0f0f0;
+    color: #292d35;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .weekdays .sunday {
+    background: #fff0f0;
+    color: #d43f46;
+  }
+
+  .weekdays .saturday {
+    background: #e4effb;
+    color: #245a9b;
+  }
+
+  .calendar-grid {
+    height: clamp(300px, calc(100svh - 420px), 720px);
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+    grid-auto-flow: row;
+    border-left: 1px solid #777;
+  }
+
+  .calendar-day {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding: 4px 5px;
+    border-right: 1px solid #777;
+    border-bottom: 1px solid #777;
+    border-radius: 0;
+    background: white;
+    transition: background-color .15s ease;
+  }
+
+  .calendar-day.sunday-cell {
+    background: #fff0f0;
+  }
+
+  .calendar-day.saturday-cell {
+    background: #e4effb;
+  }
+
+  .calendar-day.outside {
+    background: #f4f4f4;
+  }
+
+  .calendar-day.outside .day-number {
+    color: #aaa;
+  }
+
+  /* 今日のマス全体をグレーにする */
+  .calendar-day.today-cell,
+  .calendar-day.today-cell.sunday-cell,
+  .calendar-day.today-cell.saturday-cell,
+  .calendar-day.today-cell.outside {
+    background: #dedede;
+  }
+
+  .day-number {
+    display: block;
+    width: auto;
+    height: auto;
+    margin: 0 0 3px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #222;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: left;
+  }
+
+  .day-number.today {
+    width: fit-content;
+    min-width: 20px;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: #bfc3c8;
+    color: #222;
+    font-weight: 700;
+  }
+
+  /* イベント名 */
+  .day-event {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 3px;
+    padding: 3px 4px;
+    border: 0;
+    border-radius: 3px;
+    color: white;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .day-event.official {
+    background: #d94b4b;
+  }
+
+  .day-event.unofficial {
+    background: #32845b;
+  }
+
+  .day-event:hover {
+    filter: brightness(.88);
+  }
+
+  .calendar-help {
+    margin: 10px 0 0;
+    color: #999eaa;
+    font-size: 11px;
+  }
+
+  /* フッター */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 18px 0 24px;
+    border-top: 1px solid #e5e7eb;
+    color: #898f9b;
+    font-size: 11px;
+  }
+
+  .footer p {
+    margin: 4px 0;
+  }
+
+  .footer-notice {
+    flex: 1 1 350px;
+  }
+
+  .footer-credit {
+    flex: 0 1 auto;
+    text-align: right;
+  }
+
+  .footer-credit p {
+    color: #606673;
+    font-weight: 600;
+  }
+
+  .footer-credit a {
+    color: #426bb4;
+    text-decoration: none;
+  }
+
+  .footer-credit a:hover {
+    text-decoration: underline;
+  }
+
+  /* 詳細画面 */
+  .modal[hidden],
+  .tooltip[hidden] {
+    display: none !important;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+  }
+
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgb(27 30 39 / 55%);
+    backdrop-filter: blur(4px);
+    cursor: pointer;
+  }
+
+  .modal-panel {
+    position: relative;
+    width: min(640px, 100%);
+    max-height: min(85vh, 850px);
+    overflow: auto;
+    padding: 26px 32px 24px;
+    border: 1px solid #e8e0d6;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #fffdf9 0%, #fff 180px);
+    color: #292d35;
+    box-shadow: 0 24px 80px rgb(0 0 0 / 20%);
+    animation: modal-enter .18s ease-out;
+  }
+
+  @keyframes modal-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(.99);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .modal-decoration {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 0 auto 18px;
+    color: #b69b70;
+  }
+
+  .decoration-line {
+    width: 70px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #cbb99a);
+  }
+
+  .decoration-line:last-child {
+    transform: rotate(180deg);
+  }
+
+  .decoration-symbol {
+    font-size: 17px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .type-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 6px;
+    color: white;
+    font-size: 11px;
+    letter-spacing: .04em;
+  }
+
+  .type-badge.official {
+    background: #c94c50;
+  }
+
+  .type-badge.unofficial {
+    background: #32845b;
+  }
+
+  .close-button {
+    display: grid;
+    place-items: center;
+    width: 35px;
+    height: 35px;
+    border: 1px solid #e4e6ec;
+    border-radius: 50%;
+    background: white;
+    color: #626977;
+    cursor: pointer;
+    font-size: 23px;
+  }
+
+  .modal-panel h2 {
+    margin: 17px 0 4px;
+    font-size: clamp(20px, 3vw, 25px);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-subtitle {
+    margin: 0 0 20px;
+    color: #b19b7b;
+    font-size: 10px;
+    letter-spacing: .18em;
+  }
+
+  .details {
+    margin: 0;
+    border-top: 1px solid #eae6df;
+  }
+
+  .detail-row {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px 12px;
+    border-bottom: 1px solid #eeeae4;
+  }
+
+  .detail-row:nth-child(odd) {
+    background: rgb(249 247 242 / 65%);
+  }
+
+  .detail-row dt {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #85755f;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .detail-row dt::before {
+    content: "";
+    width: 3px;
+    min-height: 15px;
+    flex-shrink: 0;
+    border-radius: 3px;
+    background: #c8b28e;
+  }
+
+  .detail-row dd {
+    min-width: 0;
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #454952;
+    font-size: 13px;
+  }
+
+  .source-link {
+    color: #426bb4;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .modal-disclaimer {
+    margin: 17px 0 0;
+    color: #9297a3;
+    font-size: 10px;
+    line-height: 1.7;
+  }
+
+  /* 概要ポップアップ */
+  .tooltip {
+    position: fixed;
+    z-index: 15;
+    width: min(280px, calc(100vw - 24px));
+    padding: 14px;
+    border: 1px solid #e5e0d7;
+    border-radius: 12px;
+    background: #fffdf9;
+    color: #292d35;
+    box-shadow: 0 8px 30px rgb(0 0 0 / 12%);
+    pointer-events: none;
+  }
+
+  .tooltip strong {
+    display: block;
+    margin: 8px 0 4px;
+    color: #292d35;
+    font-size: 13px;
+  }
+
+  .tooltip p {
+    margin: 0;
+    color: #737a86;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ===== ダークモード ===== */
+
+  :global(html[data-theme="dark"] body) {
+    background: #191b20;
+    color: #e8e9ed;
+  }
+
+  :global(html[data-theme="dark"] .header),
+  :global(html[data-theme="dark"] .footer) {
+    border-color: #353941;
+  }
+
+  :global(html[data-theme="dark"] .header p),
+  :global(html[data-theme="dark"] .legend span),
+  :global(html[data-theme="dark"] .count),
+  :global(html[data-theme="dark"] .calendar-help),
+  :global(html[data-theme="dark"] .footer) {
+    color: #a5aab5;
+  }
+
+  :global(html[data-theme="dark"] .unofficial-label),
+  :global(html[data-theme="dark"] .theme-toggle),
+  :global(html[data-theme="dark"] #week-start),
+  :global(html[data-theme="dark"] #type-filter),
+  :global(html[data-theme="dark"] .calendar-controls button),
+  :global(html[data-theme="dark"] .close-button) {
+    background: #282b32;
+    border-color: #454a55;
+    color: #e1e3e8;
+  }
+
+  :global(html[data-theme="dark"] .theme-toggle:hover),
+  :global(html[data-theme="dark"] .calendar-controls button:hover),
+  :global(html[data-theme="dark"] #week-start:hover),
+  :global(html[data-theme="dark"] #type-filter:hover),
+  :global(html[data-theme="dark"] .close-button:hover) {
+    background: #373b45;
+  }
+
+  :global(html[data-theme="dark"] .calendar-card) {
+    background: #22252b;
+    border-color: #454952;
+    box-shadow: 0 4px 18px #00000012;
+  }
+
+  :global(html[data-theme="dark"] .weekdays) {
+    border-color: #626875;
+  }
+
+  :global(html[data-theme="dark"] .weekdays div) {
+    border-color: #626875;
+    background: #343841;
+    color: #e6e8ed;
+  }
+
+  :global(html[data-theme="dark"] .weekdays .sunday) {
+    background: #492d33;
+    color: #ffaaaa;
+  }
+
+  :global(html[data-theme="dark"] .weekdays .saturday) {
+    background: #293c53;
+    color: #a8ccff;
+  }
+
+  :global(html[data-theme="dark"] .calendar-grid) {
+    border-color: #626875;
+  }
+
+  :global(html[data-theme="dark"] .calendar-day) {
+    background: #252830;
+    border-right-color: #626875;
+    border-bottom-color: #626875;
+  }
+
+  :global(html[data-theme="dark"] .calendar-day.sunday-cell) {
+    background: #38272c;
+  }
+
+  :global(html[data-theme="dark"] .calendar-day.saturday-cell) {
+    background: #263548;
+  }
+
+  :global(html[data-theme="dark"] .calendar-day.outside) {
+    background: #1d2026;
+  }
+
+  :global(html[data-theme="dark"] .calendar-day.outside .day-number) {
+    color: #777e8b;
+  }
+
+  :global(html[data-theme="dark"] .calendar-day.today-cell),
+  :global(html[data-theme="dark"] .calendar-day.today-cell.sunday-cell),
+  :global(html[data-theme="dark"] .calendar-day.today-cell.saturday-cell),
+  :global(html[data-theme="dark"] .calendar-day.today-cell.outside) {
+    background: #454a54;
+  }
+
+  :global(html[data-theme="dark"] .day-number) {
+    color: #e5e7ec;
+  }
+
+  :global(html[data-theme="dark"] .day-number.today) {
+    background: #c9cdd4;
+    color: #20232a;
+  }
+
+  :global(html[data-theme="dark"] .footer-credit p) {
+    color: #d5d8df;
+  }
+
+  /* ダークモードの詳細画面 */
+  :global(html[data-theme="dark"] .modal-panel) {
+    background: linear-gradient(180deg, #292a30 0%, #22252b 180px);
+    border-color: #49413a;
+    color: #e8e9ed;
+  }
+
+  :global(html[data-theme="dark"] .modal-panel h2) {
+    color: #f0f0f3;
+  }
+
+  :global(html[data-theme="dark"] .details) {
+    border-color: #454952;
+  }
+
+  :global(html[data-theme="dark"] .detail-row) {
+    border-color: #3c4049;
+  }
+
+  :global(html[data-theme="dark"] .detail-row:nth-child(odd)) {
+    background: #292c33;
+  }
+
+  :global(html[data-theme="dark"] .detail-row dt) {
+    color: #c2b29a;
+  }
+
+  :global(html[data-theme="dark"] .detail-row dt::before) {
+    background: #a58d69;
+  }
+
+  :global(html[data-theme="dark"] .detail-row dd) {
+    color: #e0e2e7;
+  }
+
+  :global(html[data-theme="dark"] .modal-disclaimer),
+  :global(html[data-theme="dark"] .modal-subtitle) {
+    color: #aaaeb8;
+  }
+
+  /* ダークモードの概要ポップアップ */
+  :global(html[data-theme="dark"] .tooltip) {
+    background: #292c33;
+    border-color: #454952;
+    color: #e8e9ed;
+  }
+
+  :global(html[data-theme="dark"] .tooltip strong) {
+    color: #f0f0f3;
+  }
+
+  :global(html[data-theme="dark"] .tooltip p) {
+    color: #c0c4cd;
+  }
+
+  /* 高さが低い画面 */
+  @media (max-height: 850px) {
+    .header {
+      padding: 12px 0;
+    }
+
+    main {
+      padding-top: 8px;
+      padding-bottom: 16px;
+    }
+
+    .legend {
+      margin-bottom: 8px;
+    }
+
+    .calendar-card {
+      padding: 12px 16px 10px;
+    }
+
+    .calendar-toolbar {
+      margin-bottom: 8px;
+    }
+
+    .calendar-help {
+      margin-top: 6px;
+    }
+
+    .footer {
+      padding: 10px 0 14px;
+    }
+  }
+
+  @media (max-height: 700px) {
+    .calendar-grid {
+      height: clamp(240px, calc(100svh - 350px), 400px);
+    }
+
+    .calendar-day {
+      padding: 3px;
+    }
+
+    .day-number {
+      margin-bottom: 2px;
+    }
+
+    .day-event {
+      margin-top: 2px;
+      padding: 2px 3px;
+      font-size: 10px;
+    }
+
+    .calendar-help {
+      font-size: 10px;
+    }
+  }
+
+  /* スマートフォン */
+  @media (max-width: 700px) {
+    .site {
+      padding: 0 10px;
+    }
+
+    .header {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 0;
+    }
+
+    .header h1 {
+      font-size: 16px;
+    }
+
+    .header-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    main {
+      padding-top: 10px;
+    }
+
+    .calendar-card {
+      padding: 10px 5px;
+      border-radius: 10px;
+    }
+
+    .calendar-toolbar {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .toolbar-right {
+      width: 100%;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .week-start-control {
+      gap: 4px;
+    }
+
+    #week-start,
+    #type-filter {
+      padding: 5px 6px;
+      font-size: 11px;
+    }
+
+    .month-heading h2 {
+      font-size: 19px;
+    }
+
+    .calendar-grid {
+      height: clamp(320px, calc(100svh - 390px), 570px);
+    }
+
+    .calendar-day {
+      padding: 3px 2px;
+    }
+
+    .day-number {
+      margin-bottom: 3px;
+      font-size: 10px;
+    }
+
+    .day-event {
+      padding: 3px 2px;
+      font-size: 9px;
+    }
+
+    .weekdays div {
+      padding: 5px 1px;
+      font-size: 10px;
+    }
+
+    .calendar-help {
+      padding: 0 4px;
+      line-height: 1.5;
+    }
+
+    .footer {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-credit {
+      text-align: right;
+    }
+
+    .modal {
+      padding: 10px;
+    }
+
+    .modal-panel {
+      max-height: 90svh;
+      padding: 20px 15px 18px;
+      border-radius: 16px;
+    }
+
+    .modal-decoration {
+      margin-bottom: 12px;
+    }
+
+    .modal-panel h2 {
+      font-size: 20px;
+    }
+
+    .detail-row {
+      grid-template-columns: 94px minmax(0, 1fr);
+      gap: 8px;
+      padding: 11px 7px;
+    }
+
+    .detail-row dt {
+      font-size: 11px;
+    }
+
+    .detail-row dd {
+      font-size: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(body),
+    .theme-toggle {
+      transition: none;
+    }
+
+    .modal-panel {
+      animation: none;
+    }
+  }
+
+
+/* ===== カレンダー表示の修正 ===== */
+
+/*
+  JavaScriptで生成した日付マスにもCSSを適用する。
+  AstroのCSSスコープによってスタイルが適用されない問題を防ぐ。
+*/
+
+/* 罫線を確実に表示 */
+:global(.calendar-grid) {
+  border-top: 1px solid #666;
+  border-left: 1px solid #666;
+}
+
+:global(.calendar-day) {
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid #777;
+  border-bottom: 1px solid #777;
+  border-radius: 0;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* ライトモード：日曜は薄い赤、土曜は薄い青 */
+:global(.calendar-day.sunday-cell) {
+  background: #fff0f0;
+}
+
+:global(.calendar-day.saturday-cell) {
+  background: #e4effb;
+}
+
+/* 当月以外の日付 */
+:global(.calendar-day.outside) {
+  background: #f3f3f3;
+}
+
+:global(.calendar-day.outside.sunday-cell) {
+  background: #f5e5e5;
+}
+
+:global(.calendar-day.outside.saturday-cell) {
+  background: #e1e9f2;
+}
+
+/* 今日：通常日は暗めのグレー */
+:global(.calendar-day.today-cell) {
+  background: #d0d0d0;
+}
+
+/* 今日が日曜なら、赤みを残した暗めの色 */
+:global(.calendar-day.today-cell.sunday-cell) {
+  background: #e6c3c3;
+}
+
+/* 今日が土曜なら、青みを残した暗めの色 */
+:global(.calendar-day.today-cell.saturday-cell) {
+  background: #bdcfe2;
+}
+
+/* 今日が前月・翌月の日付に当たる場合 */
+:global(.calendar-day.today-cell.outside) {
+  background: #d0d0d0;
+}
+
+:global(.calendar-day.today-cell.outside.sunday-cell) {
+  background: #e6c3c3;
+}
+
+:global(.calendar-day.today-cell.outside.saturday-cell) {
+  background: #bdcfe2;
+}
+
+/* 日付の文字 */
+:global(.day-number) {
+  color: #222;
+}
+
+:global(.calendar-day.outside .day-number) {
+  color: #999;
+}
+
+/* ===== ダークモード ===== */
+
+/* 通常の日付マス */
+:global(html[data-theme="dark"] .calendar-day) {
+  background: #252830;
+  border-right-color: #626875;
+  border-bottom-color: #626875;
+}
+
+/* ダークモードの日曜・土曜 */
+:global(html[data-theme="dark"] .calendar-day.sunday-cell) {
+  background: #38272c;
+}
+
+:global(html[data-theme="dark"] .calendar-day.saturday-cell) {
+  background: #263548;
+}
+
+/* 前月・翌月 */
+:global(html[data-theme="dark"] .calendar-day.outside) {
+  background: #1d2026;
+}
+
+/* 今日：暗いグレー */
+:global(html[data-theme="dark"] .calendar-day.today-cell) {
+  background: #343840;
+}
+
+/* 今日が日曜：暗い赤系 */
+:global(html[data-theme="dark"] .calendar-day.today-cell.sunday-cell) {
+  background: #493038;
+}
+
+/* 今日が土曜：暗い青系 */
+:global(html[data-theme="dark"] .calendar-day.today-cell.saturday-cell) {
+  background: #2c4058;
+}
+
+/* 今日が前月・翌月の場合も曜日色を維持 */
+:global(html[data-theme="dark"] .calendar-day.today-cell.outside) {
+  background: #343840;
+}
+
+:global(html[data-theme="dark"] .calendar-day.today-cell.outside.sunday-cell) {
+  background: #493038;
+}
+
+:global(html[data-theme="dark"] .calendar-day.today-cell.outside.saturday-cell) {
+  background: #2c4058;
+}
+
+/* ダークモードの日付文字 */
+:global(html[data-theme="dark"] .day-number) {
+  color: #e5e7ec;
+}
+
+:global(html[data-theme="dark"] .calendar-day.outside .day-number) {
+  color: #858b96;
+}
+
+/* 今日の数字は背景と区別できるようにする */
+:global(html[data-theme="dark"] .day-number.today) {
+  background: #c9cdd4;
+  color: #20232a;
+}
+
+/* 曜日見出しの罫線 */
+:global(.weekdays) {
+  border-top: 1px solid #666;
+  border-left: 1px solid #666;
+}
+
+:global(.weekdays div) {
+  border-right: 1px solid #666;
+  border-bottom: 1px solid #666;
+}
+
+/* ダークモードの曜日見出しの罫線 */
+:global(html[data-theme="dark"] .weekdays) {
+  border-color: #626875;
+}
+
+:global(html[data-theme="dark"] .weekdays div) {
+  border-color: #626875;
+}
+
+
+/* ===== LINE Seed JP ===== */
+:global(body),
+:global(button),
+:global(select),
+:global(input),
+:global(textarea) {
+  font-family: "LINE Seed JP", sans-serif;
+}
+
+/* ===== グレーの罫線（黒より柔らかい50%透明度） ===== */
+:global(.weekdays) {
+  border-top: 1px solid rgba(90, 90, 90, 0.5);
+  border-left: 1px solid rgba(90, 90, 90, 0.5);
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+:global(.weekdays div) {
+  border-right: 1px solid rgba(90, 90, 90, 0.5);
+  border-bottom: 1px solid rgba(90, 90, 90, 0.5);
+}
+
+/* 日付マスのグリッド */
+:global(.calendar-grid) {
+  border-left: 1px solid rgba(90, 90, 90, 0.5);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+:global(.calendar-day) {
+  border: 0;
+  border-right: 1px solid rgba(90, 90, 90, 0.5);
+  border-bottom: 1px solid rgba(90, 90, 90, 0.5);
+  border-radius: 0;
+}
+
+/* ダークモードは少し明るいグレーの罫線 */
+:global(html[data-theme="dark"] .weekdays) {
+  border-color: rgba(190, 195, 205, 0.5);
+}
+
+:global(html[data-theme="dark"] .weekdays div) {
+  border-color: rgba(190, 195, 205, 0.5);
+}
+
+:global(html[data-theme="dark"] .calendar-grid) {
+  border-color: rgba(190, 195, 205, 0.5);
+}
+
+:global(html[data-theme="dark"] .calendar-day) {
+  border-right-color: rgba(190, 195, 205, 0.5);
+  border-bottom-color: rgba(190, 195, 205, 0.5);
+}
+
+
+/* ===== 今回の表示調整 ===== */
+
+/* 曜日：太字にして、左右に少し余白を付ける */
+:global(.weekdays div) {
+  padding: 7px 8px;
+  text-align: left;
+  font-weight: 700;
+}
+
+/* 日付：太字＋左端から少し内側へ */
+:global(.day-number) {
+  padding-left: 4px;
+  font-weight: 700;
+}
+
+:global(.day-number.today) {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+/* イベント名：通常の太さにし、日付を避けて枠内に収める */
+:global(.calendar-day) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+:global(.day-number) {
+  flex: 0 0 auto;
+}
+
+:global(.day-event) {
+  display: block;
+  flex: 0 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100% - 26px);
+  margin-top: 3px;
+  padding: 4px 5px;
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  cursor: pointer;
+}
+
+:global(.day-event.official) {
+  background: #d94b4b;
+  color: #fff;
+}
+
+:global(.day-event.unofficial) {
+  background: #32845b;
+  color: #fff;
+}
+
+:global(.day-event.official:hover),
+:global(.day-event.unofficial:hover) {
+  filter: brightness(.9);
+}
+
+/* 詳細画面：項目を縦に並べ、ラベルを太字にして余白を確保 */
+:global(.detail-row) {
+  display: block;
+  padding: 13px 14px;
+  margin: 0;
+  border-bottom: 1px solid #eeeae4;
+}
+
+:global(.detail-row dt) {
+  display: block;
+  margin: 0 0 6px;
+  color: #85755f;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+:global(.detail-row dd) {
+  margin: 0 0 0 18px;
+  color: #454952;
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+:global(.detail-row dt::before) {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  margin-right: 8px;
+  border-radius: 3px;
+  background: #c8b28e;
+  vertical-align: -2px;
+}
+
+:global(html[data-theme="dark"] .detail-row) {
+  border-color: #3c4049;
+}
+
+:global(html[data-theme="dark"] .detail-row dt) {
+  color: #c2b29a;
+}
+
+:global(html[data-theme="dark"] .detail-row dd) {
+  color: #e0e2e7;
+}
+
+:global(html[data-theme="dark"] .detail-row dt::before) {
+  background: #a58d69;
+}
+
+@media (max-width: 700px) {
+  :global(.weekdays div) {
+    padding: 6px 5px;
+  }
+
+  :global(.day-number) {
+    padding-left: 2px;
+  }
+
+  :global(.detail-row) {
+    padding: 11px 8px;
+  }
+}
+
+
+/* ===== 詳細モーダルの表示調整 ===== */
+:global(.modal-panel) {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  max-height: calc(100svh - 40px);
+  overflow: hidden;
+  padding: 20px 30px 18px;
+}
+
+:global(.modal-decoration) {
+  margin-bottom: 10px;
+}
+
+:global(.modal-panel h2) {
+  margin-top: 10px;
+  margin-bottom: 2px;
+  font-size: clamp(19px, 2.5vw, 23px);
+}
+
+:global(.modal-subtitle) {
+  margin-bottom: 12px;
+}
+
+/* 項目名と内容を横並びにして、全項目を一画面に収める */
+:global(.detail-row) {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+:global(.detail-row dt) {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+:global(.detail-row dd) {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+:global(.modal-disclaimer) {
+  margin-top: 10px;
+  font-size: 10px;
+}
+
+/* ×を円形ボタンの中央に配置 */
+:global(.close-button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+@media (max-width: 700px) {
+  :global(.modal) {
+    padding: 10px;
+  }
+
+  :global(.modal-panel) {
+    width: 100%;
+    max-height: calc(100svh - 20px);
+    padding: 18px 14px 14px;
+  }
+
+  :global(.detail-row) {
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px 6px;
+  }
+
+  :global(.detail-row dt),
+  :global(.detail-row dd) {
+    font-size: 11px;
+  }
+}
+
+/* 画面が極端に低い場合のみ、内容を切らずにスクロール可能にする */
+@media (max-height: 620px) {
+  :global(.modal-panel) {
+    overflow-y: auto;
+  }
+}
+
+
+
+/* ===== 初期画面をブラウザの高さに合わせる ===== */
+:global(html),
+:global(body) {
+  min-height: 100%;
+}
+
+.site {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* カレンダー直下に余分な空白を作らず、内容の高さで止める */
+.site main {
+  flex: 0 0 auto;
+}
+
+/* 画面の高さに合わせてカレンダー全体の高さだけを調整する。
+   7列×6週の構成・各マスの比率は維持する。 */
+@media (min-height: 701px) {
+  .site main {
+    padding-top: 8px;
+    padding-bottom: 10px;
+  }
+
+  .calendar-card {
+    padding: 14px 16px 10px;
+  }
+
+  .calendar-toolbar {
+    margin-bottom: 8px;
+  }
+
+  .calendar-grid {
+    /* 画面下部の余白を減らすため、カレンダーを少し縦長にする */
+    height: clamp(320px, calc(100svh - 395px), 700px);
+  }
+
+  .calendar-help {
+    margin-top: 6px;
+  }
+
+  .footer {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+}
+
+/* ノートPCなど高さが小さい画面では、余白をさらに抑えて表示領域を確保 */
+@media (max-height: 700px) {
+  .site main {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .calendar-card {
+    padding: 8px 12px 7px;
+  }
+
+  .calendar-grid {
+    height: clamp(220px, calc(100svh - 430px), 320px);
+  }
+
+  .footer {
+    padding-top: 6px;
+    padding-bottom: 8px;
+  }
+}
+
+
+
+/* ===== 曜日見出しの土日カラー（JavaScript生成要素にも適用） ===== */
+:global(.weekdays .sunday) {
+  background: #fff0f0 !important;
+  color: #d43f46 !important;
+}
+
+:global(.weekdays .saturday) {
+  background: #e4effb !important;
+  color: #245a9b !important;
+}
+
+:global(html[data-theme="dark"] .weekdays .sunday) {
+  background: #492d33 !important;
+  color: #ffaaaa !important;
+}
+
+:global(html[data-theme="dark"] .weekdays .saturday) {
+  background: #293c53 !important;
+  color: #a8ccff !important;
+}
+
+</style>
+
+
