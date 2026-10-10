@@ -48,7 +48,7 @@ export const events: CalendarEvent[] = [
   {
     id: 2,
     type: "unofficial",
-    name: "アルカナ学院関係者限定 ハーベストパーティ",
+    name: "アルカナ学院 ハーベストパーティ",
     date: "2026-10-21",
     start: "22:00",
     end: "23:00",
