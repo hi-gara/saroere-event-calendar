@@ -2075,23 +2075,40 @@ const typeNames = {
   color: #a8ccff !important;
 }
 
-/* スマートフォンではカレンダーを縦長にする */
+/* ===== スマートフォン表示の調整 ===== */
 @media (max-width: 700px) {
   :global(.calendar-grid) {
-    height: 720px;
-    grid-template-rows: repeat(6, minmax(0, 1fr));
+    height: auto;
+    grid-template-rows: none;
+    grid-auto-rows: minmax(105px, auto);
   }
 
   :global(.calendar-day) {
-    min-height: 0;
+    min-height: 105px;
+    height: auto;
+    overflow: visible;
   }
 
   :global(.day-event) {
+    flex: 0 0 auto;
     max-height: none;
+    height: auto;
     white-space: normal;
+    overflow: visible;
     overflow-wrap: anywhere;
+    font-size: 9px;
     line-height: 1.4;
-    padding: 4px 2px;
+    padding: 3px 2px;
+  }
+
+  .site {
+    min-height: 0;
+  }
+
+  .footer {
+    margin-top: 0;
+    padding-top: 10px;
+    padding-bottom: 12px;
   }
 }
 
