@@ -2075,6 +2075,26 @@ const typeNames = {
   color: #a8ccff !important;
 }
 
+/* スマートフォンではカレンダーを縦長にする */
+@media (max-width: 700px) {
+  :global(.calendar-grid) {
+    height: 720px;
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+  }
+
+  :global(.calendar-day) {
+    min-height: 0;
+  }
+
+  :global(.day-event) {
+    max-height: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    padding: 4px 2px;
+  }
+}
+
 </style>
 
 
