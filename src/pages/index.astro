@@ -2075,64 +2075,64 @@ const typeNames = {
   color: #a8ccff !important;
 }
 
-/* ===== スマートフォン表示の調整 ===== */
+/* ===== スマホ用カレンダー・レイアウト修正 ===== */
 @media (max-width: 700px) {
-  /* カレンダーを画面の高さに固定せず、縦に伸ばす */
+  /* カレンダーの外枠を中身に追従させる */
+  :global(.calendar-card) {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* 7列×6段。日付マスを正方形に近い高さにする */
   :global(.calendar-grid) {
-    height: auto;
-    grid-template-rows: repeat(6, minmax(105px, auto));
-    grid-auto-rows: auto;
-    overflow: visible;
+    height: auto !important;
+    grid-template-rows: repeat(6, 105px) !important;
+    grid-auto-rows: 105px !important;
+    overflow: visible !important;
   }
 
-  /* 日付マスは最低105pxを確保 */
   :global(.calendar-day) {
-    height: auto;
-    min-height: 105px;
-    overflow: visible;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
-  /* イベント名を折り返して表示 */
+  /* イベント名は折り返して表示 */
   :global(.day-event) {
-    flex: 0 0 auto;
-    height: auto;
-    max-height: none;
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: none !important;
     min-height: 0;
-    white-space: normal;
-    overflow: visible;
-    overflow-wrap: anywhere;
+    padding: 3px 2px;
     font-size: 9px;
     line-height: 1.4;
-    padding: 3px 2px;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere;
   }
 
-  /* スマホではページ全体を内容の高さに合わせる */
+  /* ページ全体とフッターの余白を整える */
   .site {
-    min-height: 0;
-    height: auto;
+    height: auto !important;
+    min-height: 0 !important;
   }
 
   .site main {
-    flex: 0 0 auto;
+    flex: 0 0 auto !important;
     padding-bottom: 10px;
   }
 
-  /* フッターの余白をなくす */
   .footer {
-    flex: 0 0 auto;
+    flex: 0 0 auto !important;
     margin-top: 0;
+    padding: 10px 0 12px;
     gap: 12px;
-    padding-top: 10px;
-    padding-bottom: 12px;
   }
 
-  .footer-notice {
-    flex: 0 1 auto;
-  }
-
+  .footer-notice,
   .footer-credit {
     flex: 0 1 auto;
-    text-align: right;
   }
 }
 
