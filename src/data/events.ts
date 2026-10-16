@@ -103,7 +103,7 @@ export const events: CalendarEvent[] = [
     id: 5,
     type: "unofficial",
     name: "性別不詳・無性別 非公式キャラクター集会",
-    date: "2026-10-24",
+    date: "2026-10-31",
     start: "22:00",
     end: "23:00",
     country: "ベルギア",
